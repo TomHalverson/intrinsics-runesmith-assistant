@@ -6,96 +6,123 @@
 
 /* Vertical Rune List Styles */
 .runesmith-picker-vertical {
-  .rune-list-vertical {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-height: 500px;
-    overflow-y: auto;
-    padding: 8px;
-  }
-
-  .rune-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 2px solid transparent;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(234, 74, 114, 0.5);
-    }
-
-    &.selected {
-      background: rgba(234, 74, 114, 0.2);
-      border-color: rgb(234, 74, 114);
-    }
-
-    input[type="radio"] {
-      display: none;
-    }
-
-    .rune-icon {
-      width: 48px;
-      height: 48px;
-      flex-shrink: 0;
-      border-radius: 4px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-
-    .rune-info {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .rune-name {
-      font-size: 1.1em;
-      font-weight: bold;
-      color: #fff;
-      word-wrap: break-word;
-      line-height: 1.3;
-    }
-
-    .rune-traits {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-
-      .trait {
-        font-size: 0.75em;
-        padding: 2px 6px;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 3px;
-        color: #ccc;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-    }
-
-    .rune-selected-icon {
-      color: rgb(234, 74, 114);
-      font-size: 1.5em;
-      opacity: 0;
-      transition: opacity 0.2s ease;
-      flex-shrink: 0;
-    }
-
-    &.selected .rune-selected-icon {
-      opacity: 1;
-    }
-  }
+  padding: 0;
 }
 
-/* Old horizontal layout (for reference/backwards compatibility) */
+.runesmith-picker-vertical .rune-list-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 450px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.runesmith-picker-vertical .rune-row-vertical {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.runesmith-picker-vertical .rune-row-vertical input[type="radio"] {
+  display: none;
+}
+
+.runesmith-picker-vertical .rune-row-vertical:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(234, 74, 114, 0.5);
+}
+
+.runesmith-picker-vertical .rune-row-vertical.selected {
+  background: rgba(234, 74, 114, 0.2);
+  border-color: rgb(234, 74, 114);
+}
+
+.runesmith-picker-vertical .rune-icon-vertical {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px;
+  min-height: 40px;
+  max-width: 40px;
+  max-height: 40px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  object-fit: cover;
+}
+
+.runesmith-picker-vertical .rune-info-vertical {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.runesmith-picker-vertical .rune-name-vertical {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.2;
+  word-wrap: break-word;
+}
+
+.runesmith-picker-vertical .rune-traits-vertical {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  line-height: 1;
+}
+
+.runesmith-picker-vertical .rune-traits-vertical .trait-tag {
+  font-size: 0.7em;
+  padding: 2px 5px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 2px;
+  color: #ccc;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.runesmith-picker-vertical .rune-check-icon {
+  color: rgb(234, 74, 114);
+  font-size: 1.3em;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.runesmith-picker-vertical .rune-row-vertical.selected .rune-check-icon {
+  opacity: 1;
+}
+
+.runesmith-picker-vertical .rune-list-vertical::-webkit-scrollbar {
+  width: 6px;
+}
+
+.runesmith-picker-vertical .rune-list-vertical::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.runesmith-picker-vertical .rune-list-vertical::-webkit-scrollbar-thumb {
+  background: rgba(234, 74, 114, 0.6);
+  border-radius: 3px;
+}
+
+.runesmith-picker-vertical .rune-list-vertical::-webkit-scrollbar-thumb:hover {
+  background: rgba(234, 74, 114, 0.8);
+}
+
+/* Old horizontal layout (for backwards compatibility) */
 .rune-section {
   margin-bottom: 10px;
 }
@@ -158,11 +185,6 @@
 
 [name="etched"]:checked+img,
 [name="traced"]:checked+img {
-  outline: 2px solid #f00;
-}
-
-[name="etched"]:checked+img,
-[name="etched"]:checked+img {
   outline: 2px solid #f00;
 }
 
@@ -274,23 +296,4 @@ hr {
   .hidden {
     display: none;
   }
-}
-
-/* Scrollbar styling for vertical list */
-.rune-list-vertical::-webkit-scrollbar {
-  width: 8px;
-}
-
-.rune-list-vertical::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-}
-
-.rune-list-vertical::-webkit-scrollbar-thumb {
-  background: rgba(234, 74, 114, 0.6);
-  border-radius: 4px;
-}
-
-.rune-list-vertical::-webkit-scrollbar-thumb:hover {
-  background: rgba(234, 74, 114, 0.8);
 }

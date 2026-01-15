@@ -19,9 +19,44 @@ export async function createRuneTraceEffect({
   const effectName = `[${type === "etched" ? "Etched" : "Traced"}] ${name}${object || item ? " on " : ""
   }${object || ""}${item || ""}`;
 
-  // Play trace/etch animation based on rune type (only for trace)
-  if (type === "traced") {
+  // Play trace/etch animation based on rune type
+  if (type === "traced" || type === "etched") {
     playTraceAnimation(rune, tokenSource, targetToken || tokenSource);
+  }
+
+  // Special handling for Esvadir rune - apply to all strikes instead of specific items
+  const isEsvadir = name?.toLowerCase().includes("esvadir") ||
+                     name?.toLowerCase().includes("whetstone");
+
+  let rules = [];
+  if (object) {
+    rules = [];
+  } else if (isEsvadir) {
+    // For Esvadir, add persistent bleed to all strikes
+    // 2 persistent bleed per weapon damage die
+    rules = [
+      {
+        key: "FlatModifier",
+        selector: ["strike-damage"],
+        value: 2,
+        damageType: "bleed",
+        category: "persistent",
+        predicate: [
+          {
+            or: ["item:trait:piercing", "item:trait:slashing"]
+          }
+        ]
+      }
+    ];
+  } else {
+    rules = rune.effects.map((effectUUID) => ({
+      key: "GrantItem",
+      onDeleteActions: {
+        grantee: "restrict",
+      },
+      allowDuplicate: true,
+      uuid: effectUUID,
+    }));
   }
 
   const effectData = {
@@ -52,18 +87,9 @@ export async function createRuneTraceEffect({
       traits: {
         custom: "",
         rarity: "common",
-        value: rune.traits,
+        value: rune.traits?.filter(t => t !== "rune") || [],
       },
-      rules: object
-      ? []
-      : rune.effects.map((effectUUID) => ({
-        key: "GrantItem",
-        onDeleteActions: {
-          grantee: "restrict",
-        },
-        allowDuplicate: true,
-        uuid: effectUUID,
-      })),
+      rules: rules,
       level: {
         value: tokenSource?.actor?.level ?? 1,
       },

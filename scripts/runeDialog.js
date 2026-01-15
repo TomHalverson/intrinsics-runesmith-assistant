@@ -7,6 +7,7 @@ import {
 } from "./misc.js";
 import { MODULE_ID } from "./module.js";
 import { getAllowedTokenName, getTokenImage } from "./targetDialog.js";
+import { invokeRune } from "./invokeRuneDialog.js";
 
 export async function runeEtchTraceDialog(options = {}) {
   const token = getYourToken();
@@ -42,7 +43,7 @@ export async function runeEtchTraceDialog(options = {}) {
           effects: getEffects(r.description),
           enriched_desc: (
             await TextEditor.enrichHTML(r.description, { rollData })
-          ).replaceAll("'", '"'),
+          ).replaceAll('"', '&quot;'),
         };
       })
     )
@@ -51,188 +52,132 @@ export async function runeEtchTraceDialog(options = {}) {
   let res = await pickDialog({ runes: runeData, actor, token, options });
 }
 
-/**
- * Format traits for display
- */
 function formatTraits(traits) {
   if (!traits || traits.length === 0) return '';
   
   return traits
     .map(trait => {
-      // Try to get localized label from PF2e config
       const label = CONFIG.PF2E?.actionTraits?.[trait] || 
                     CONFIG.PF2E?.featTraits?.[trait] || 
                     CONFIG.PF2E?.spellTraits?.[trait] ||
-                    // Fallback: capitalize first letter of slug
                     trait.charAt(0).toUpperCase() + trait.slice(1);
-      return `<span class="trait-tag trait-${trait}">${label}</span>`;
+      return `<span style="font-size: 0.7em; padding: 2px 5px; background: rgba(0,0,0,0.4); border-radius: 2px; color: #ccc; margin-right: 3px; display: inline-block;">${label}</span>`;
     })
-    .join(' ');
+    .join('');
 }
 
 async function pickDialog({ runes, actor, token, options }) {
-  // Build vertical list of runes
-  let rune_content = `<div class="rune-list-vertical">`;
+  // Check if there are any etched or traced runes to invoke
+  const actorRunes = actor.getFlag(MODULE_ID, "runes");
+  const hasAppliedRunes = (actorRunes?.etched?.length > 0) || (actorRunes?.traced?.length > 0);
+
+  // Build a simple table-based layout with radio buttons
+  let tableRows = '';
   
   for (let rune of runes) {
     const traitsHtml = formatTraits(rune.traits);
-    
-    rune_content += `
-      <label class="rune-row-vertical" data-tooltip='${rune.enriched_desc}' data-tooltip-direction="LEFT">
-        <input type="radio" name="rune-selection" value="${rune.id}" style="display: none;">
-        <div class="rune-row-content">
-          <img src="${rune.img}" class="rune-icon-vertical">
-          <div class="rune-info-vertical">
-            <div class="rune-name-vertical">${rune.name}</div>
-            ${traitsHtml ? `<div class="rune-traits-vertical">${traitsHtml}</div>` : ''}
-          </div>
-          <i class="fas fa-check-circle rune-check-icon"></i>
-        </div>
-      </label>`;
+    tableRows += `
+      <tr class="rune-select-row" data-rune-id="${rune.id}" data-tooltip="${rune.enriched_desc}" data-tooltip-direction="LEFT">
+        <td style="width: 40px; text-align: center; padding: 5px;">
+          <input type="radio" name="rune-selection" value="${rune.id}" style="margin: 0; cursor: pointer;">
+        </td>
+        <td style="width: 50px; text-align: center; padding: 5px;">
+          <img src="${rune.img}" style="width: 36px; height: 36px; border-radius: 3px; border: 1px solid #999; display: block; margin: 0 auto;">
+        </td>
+        <td style="padding: 5px 10px;">
+          <div style="font-weight: 600; margin-bottom: 3px;">${rune.name}</div>
+          <div style="line-height: 1.4;">${traitsHtml}</div>
+        </td>
+        <td style="width: 30px; text-align: center;">
+          <i class="fas fa-check-circle rune-check-icon" style="color: rgb(234, 74, 114); font-size: 1.2em; opacity: 0;"></i>
+        </td>
+      </tr>
+    `;
   }
-  rune_content += `</div>`;
 
   let content = `
     <style>
-      /* Scoped styles for this dialog */
-      .runesmith-picker-vertical .rune-list-vertical {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        max-height: 450px;
-        overflow-y: auto;
-        padding: 4px;
+      .rune-select-table {
+        width: 100%;
+        border-collapse: collapse;
       }
-      
-      .runesmith-picker-vertical .rune-row-vertical {
-        display: block;
+      .rune-select-row {
         cursor: pointer;
-        margin: 0;
-        padding: 0;
-      }
-      
-      .runesmith-picker-vertical .rune-row-content {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 8px;
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.03);
         border: 2px solid transparent;
-        border-radius: 4px;
-        transition: all 0.2s ease;
+        transition: all 0.15s ease;
       }
-      
-      .runesmith-picker-vertical .rune-row-vertical:hover .rune-row-content {
-        background: rgba(255, 255, 255, 0.1);
+      .rune-select-row:hover {
+        background: rgba(255, 255, 255, 0.08);
         border-color: rgba(234, 74, 114, 0.5);
       }
-      
-      .runesmith-picker-vertical .rune-row-vertical.selected .rune-row-content {
-        background: rgba(234, 74, 114, 0.2);
-        border-color: rgb(234, 74, 114);
+      .rune-select-row.selected {
+        background: rgba(234, 74, 114, 0.25) !important;
+        border-color: rgb(234, 74, 114) !important;
       }
-      
-      .runesmith-picker-vertical .rune-icon-vertical {
-        width: 40px !important;
-        height: 40px !important;
-        min-width: 40px;
-        min-height: 40px;
-        max-width: 40px;
-        max-height: 40px;
-        flex-shrink: 0;
-        border-radius: 3px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        object-fit: cover;
+      .rune-select-row.selected .rune-check-icon {
+        opacity: 1 !important;
       }
-      
-      .runesmith-picker-vertical .rune-info-vertical {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
+      .rune-table-container {
+        max-height: 420px;
+        overflow-y: auto;
+        border: 1px solid #555;
+        border-radius: 4px;
       }
-      
-      .runesmith-picker-vertical .rune-name-vertical {
-        font-size: 0.95em;
-        font-weight: 600;
-        color: #fff;
-        line-height: 1.2;
-        word-wrap: break-word;
+      .rune-table-container::-webkit-scrollbar {
+        width: 8px;
       }
-      
-      .runesmith-picker-vertical .rune-traits-vertical {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 3px;
-        line-height: 1;
+      .rune-table-container::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
       }
-      
-      .runesmith-picker-vertical .trait-tag {
-        font-size: 0.7em;
-        padding: 2px 5px;
-        background: rgba(0, 0, 0, 0.4);
-        border-radius: 2px;
-        color: #ccc;
-        text-transform: capitalize;
-        white-space: nowrap;
-      }
-      
-      .runesmith-picker-vertical .rune-check-icon {
-        color: rgb(234, 74, 114);
-        font-size: 1.3em;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-        flex-shrink: 0;
-        margin-left: auto;
-      }
-      
-      .runesmith-picker-vertical .rune-row-vertical.selected .rune-check-icon {
-        opacity: 1;
-      }
-      
-      .runesmith-picker-vertical .rune-list-vertical::-webkit-scrollbar {
-        width: 6px;
-      }
-      
-      .runesmith-picker-vertical .rune-list-vertical::-webkit-scrollbar-track {
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 3px;
-      }
-      
-      .runesmith-picker-vertical .rune-list-vertical::-webkit-scrollbar-thumb {
+      .rune-table-container::-webkit-scrollbar-thumb {
         background: rgba(234, 74, 114, 0.6);
-        border-radius: 3px;
-      }
-      
-      .runesmith-picker-vertical .rune-list-vertical::-webkit-scrollbar-thumb:hover {
-        background: rgba(234, 74, 114, 0.8);
+        border-radius: 4px;
       }
     </style>
-    <form class="runesmith-picker-vertical">
-      ${rune_content}
-    </form>
+    <div class="rune-table-container">
+      <table class="rune-select-table">
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+    </div>
   `;
 
-  let image = new Promise((resolve) => {
+  let selectedRuneId = null;
+
+  return new Promise((resolve) => {
     const buttons = [];
+
+    // Add Invoke button at the start if there are applied runes
+    if (hasAppliedRunes && !options?.engravingStrikeOnly) {
+      buttons.push({
+        action: "invoke",
+        label: localize("keywords.invoke"),
+        callback: async () => {
+          // Open the invoke dialog
+          const { invokeRuneDialog } = await import("./invokeRuneDialog.js");
+          await invokeRuneDialog();
+          resolve(null);
+        },
+        icon: "fa-solid fa-hand-holding-magic",
+      });
+    }
 
     if (!options?.traceOnly && !options?.engravingStrikeOnly) {
       buttons.push({
         action: "etch",
         label: localize("keywords.etch"),
-        callback: async (event, button, dialog) => {
-          const html = dialog.element || dialog;
-          let itemId = $(html).find("input[type='radio'][name='rune-selection']:checked").val();
-          if (!itemId) {
+        callback: async () => {
+          if (!selectedRuneId) {
             ui.notifications.warn("Please select a rune first");
             return;
           }
-          addRune(
-            runes.find((s) => s.id === itemId),
+          await addRune(
+            runes.find((s) => s.id === selectedRuneId),
             { actor, token, type: "etched" }
           );
-          resolve(itemId);
+          resolve(selectedRuneId);
         },
         icon: "fa-solid fa-hammer-crash",
       });
@@ -241,61 +186,54 @@ async function pickDialog({ runes, actor, token, options }) {
     if (!options?.etchOnly && !options?.engravingStrikeOnly) {
       buttons.push(
         {
-          label: `${localize("keywords.trace")}`,
+          label: localize("keywords.trace"),
           action: "trace",
-          callback: async (event, button, dialog) => {
-            const html = dialog.element || dialog;
-            let itemId = $(html).find("input[type='radio'][name='rune-selection']:checked").val();
-            if (!itemId) {
+          callback: async () => {
+            if (!selectedRuneId) {
               ui.notifications.warn("Please select a rune first");
               return;
             }
-            addRune(
-              runes.find((s) => s.id === itemId),
+            await addRune(
+              runes.find((s) => s.id === selectedRuneId),
               { actor, token, type: "traced", action: "1" }
             );
-            resolve(itemId);
+            resolve(selectedRuneId);
           },
           icon: "fa-solid fa-pencil",
         },
         {
           label: `${localize("keywords.trace")} (30 ft)`,
           action: "trace2",
-          callback: async (event, button, dialog) => {
-            const html = dialog.element || dialog;
-            let itemId = $(html).find("input[type='radio'][name='rune-selection']:checked").val();
-            if (!itemId) {
+          callback: async () => {
+            if (!selectedRuneId) {
               ui.notifications.warn("Please select a rune first");
               return;
             }
-            addRune(
-              runes.find((s) => s.id === itemId),
+            await addRune(
+              runes.find((s) => s.id === selectedRuneId),
               { actor, token, type: "traced", action: "2" }
             );
-            resolve(itemId);
+            resolve(selectedRuneId);
           },
           icon: "fa-solid fa-pencil",
         }
       );
     }
 
-    // Add Engraving Strike button
     if (!options?.etchOnly && !options?.traceOnly) {
       buttons.push({
         label: localize("keywords.engravingStrike"),
         action: "engravingStrike",
-        callback: async (event, button, dialog) => {
-          const html = dialog.element || dialog;
-          let itemId = $(html).find("input[type='radio'][name='rune-selection']:checked").val();
-          if (!itemId) {
+        callback: async () => {
+          if (!selectedRuneId) {
             ui.notifications.warn("Please select a rune first");
             return;
           }
           await performEngravingStrike(
-            runes.find((s) => s.id === itemId),
+            runes.find((s) => s.id === selectedRuneId),
             { actor, token }
           );
-          resolve(itemId);
+          resolve(selectedRuneId);
         },
         icon: "fa-solid fa-sword",
       });
@@ -317,44 +255,56 @@ async function pickDialog({ runes, actor, token, options }) {
       content,
       buttons,
       render: (_event, app) => {
-        const html = app.element ? app.element : app;
+        const html = app.element;
         
-        // Handle row clicks to select radio
-        $(html).find(".rune-row-vertical").on("click", function(e) {
-          if (e.target.tagName !== 'INPUT') {
-            $(html).find(".rune-row-vertical").removeClass("selected");
-            $(this).addClass("selected");
-            $(this).find("input[type='radio']").prop("checked", true);
-          }
+        // Handle radio button changes
+        html.querySelectorAll('input[name="rune-selection"]').forEach(radio => {
+          radio.addEventListener('change', function() {
+            if (this.checked) {
+              // Remove selected class from all rows
+              html.querySelectorAll('.rune-select-row').forEach(r => r.classList.remove('selected'));
+              // Add selected class to parent row
+              const row = this.closest('.rune-select-row');
+              row.classList.add('selected');
+              selectedRuneId = this.value;
+            }
+          });
         });
 
-        // Attach right-click listener for free etching
-        $(html).find(".rune-row-vertical").on("contextmenu", async function (event) {
-          event.preventDefault();
-          const runeId = $(this).find("input[type=radio]").val();
-          const runeObj = runes.find((s) => s.id === runeId);
-          await addRune(runeObj, {
-            actor,
-            token,
-            type: "etched",
-            free: true,
+        // Handle row clicks to also select the radio
+        html.querySelectorAll('.rune-select-row').forEach(row => {
+          row.addEventListener('click', function(e) {
+            // Don't interfere if clicking the radio directly
+            if (e.target.type === 'radio') return;
+            
+            const radio = this.querySelector('input[type="radio"]');
+            radio.checked = true;
+            radio.dispatchEvent(new Event('change'));
           });
-          ui.notifications.info(`Free etched: ${runeObj.name}`);
-          resolve(runeId);
+
+          // Handle right-click for free etching
+          row.addEventListener('contextmenu', async function(event) {
+            event.preventDefault();
+            const runeId = this.dataset.runeId;
+            const runeObj = runes.find((s) => s.id === runeId);
+            await addRune(runeObj, {
+              actor,
+              token,
+              type: "etched",
+              free: true,
+            });
+            ui.notifications.info(`Free etched: ${runeObj.name}`);
+            resolve(runeId);
+          });
         });
       },
-      position: { width: 500, height: 550 },
+      position: { width: 540, height: 600 },
     });
   });
-  return image;
 }
 
-/**
- * Performs an Engraving Strike - makes a melee strike and traces a rune on hit
- */
 async function performEngravingStrike(rune, { actor, token }) {
-  // Check for equipped melee weapons
-  const meleeWeapons = actor.itemTypes.weapon.filter(w => 
+  const meleeWeapons = actor.itemTypes.weapon.filter(w =>
     w.isEquipped && w.isMelee
   );
 
@@ -363,18 +313,16 @@ async function performEngravingStrike(rune, { actor, token }) {
     return;
   }
 
-  // Select weapon
   let selectedWeapon;
   if (meleeWeapons.length === 1) {
     selectedWeapon = meleeWeapons[0];
   } else {
-    // Show weapon selection dialog
     let weaponContent = `
       <form>
         <div class="form-group">
           <label><strong>Select a melee weapon:</strong></label>
-          <select name="weaponId" style="width: 100%; margin-top: 8px;">
-            ${meleeWeapons.map(w => 
+          <select name="weaponId" style="width: 100%; margin-top: 8px; padding: 5px;">
+            ${meleeWeapons.map(w =>
               `<option value="${w.id}">${w.name}</option>`
             ).join('')}
           </select>
@@ -411,30 +359,74 @@ async function performEngravingStrike(rune, { actor, token }) {
     selectedWeapon = meleeWeapons.find(w => w.id === weaponId);
   }
 
-  // Check if we have a target
   const currentTargets = Array.from(game.user.targets);
   if (currentTargets.length === 0) {
     ui.notifications.warn("Please target a token for your Engraving Strike");
     return;
   }
 
-  // Make the strike roll
   try {
-    const strikeAction = selectedWeapon;
+    ui.notifications.info(`Rolling Engraving Strike with ${selectedWeapon.name}...`);
     
-    // Post the strike to chat
-    await strikeAction.toMessage(null, { rollMode: game.settings.get("core", "rollMode") });
+    // Find the strike action for this weapon in the actor's actions
+    const strikeActions = actor.system.actions || [];
+    const weaponStrike = strikeActions.find(action => 
+      action.item?.id === selectedWeapon.id && action.type === 'strike'
+    );
 
-    // Ask if the strike hit
-    const hitResult = await foundry.applications.api.DialogV2.wait({
+    if (!weaponStrike) {
+      ui.notifications.error("Could not find strike action for this weapon");
+      console.error("Available actions:", strikeActions);
+      return;
+    }
+
+    // Use the first variant (no MAP penalty)
+    const firstVariant = weaponStrike.variants?.[0];
+    
+    if (!firstVariant) {
+      ui.notifications.error("Could not find strike variant");
+      return;
+    }
+
+    // Roll the attack using the variant's roll method
+    const attackRoll = await firstVariant.roll({ 
+      skipDialog: false,
+      event: new Event('click')
+    });
+
+    if (!attackRoll) {
+      ui.notifications.warn("Attack roll was cancelled");
+      return;
+    }
+
+    // Wait for the roll to complete and message to be created
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Check if we can determine the outcome from the roll
+    let isHit = false;
+    
+    // Try to get the degree of success
+    if (attackRoll.degreeOfSuccess !== undefined) {
+      // 0 = critical failure, 1 = failure, 2 = success, 3 = critical success
+      isHit = attackRoll.degreeOfSuccess >= 2;
+    }
+
+    // If we have the roll options, check for the outcome
+    if (attackRoll.options?.degreeOfSuccess !== undefined) {
+      isHit = attackRoll.options.degreeOfSuccess >= 2;
+    }
+
+    // Ask user to confirm if we can't determine automatically
+    const shouldTrace = await foundry.applications.api.DialogV2.wait({
       window: {
         title: "Engraving Strike Result",
         icon: "fas fa-dice-d20",
       },
       content: `
         <div style="text-align: center; padding: 20px;">
-          <h3>Did your strike with ${selectedWeapon.name} hit?</h3>
+          <h3>Did your strike hit?</h3>
           <p>If the strike was successful, the rune <strong>${rune.name}</strong> will be traced on the target.</p>
+          ${isHit ? '<p style="color: #4CAF50;"><strong>Auto-detected: HIT</strong></p>' : ''}
         </div>
       `,
       buttons: [
@@ -442,6 +434,7 @@ async function performEngravingStrike(rune, { actor, token }) {
           action: "hit",
           label: "Hit - Trace Rune",
           icon: "fas fa-check-circle",
+          default: isHit,
           callback: () => true
         },
         {
@@ -454,8 +447,7 @@ async function performEngravingStrike(rune, { actor, token }) {
       position: { width: 450 },
     });
 
-    if (hitResult) {
-      // Strike hit - trace the rune on the targets
+    if (shouldTrace) {
       const targets = currentTargets.map(targetToken => ({
         type: 'person',
         token: targetToken.id,
@@ -467,7 +459,6 @@ async function performEngravingStrike(rune, { actor, token }) {
         objectName: null
       }));
 
-      // Process each target
       for (const target of targets) {
         let runes = actor.getFlag(MODULE_ID, "runes");
         const id = foundry.utils.randomID();
@@ -504,18 +495,14 @@ async function performEngravingStrike(rune, { actor, token }) {
     }
   } catch (error) {
     console.error("Engraving Strike error:", error);
-    ui.notifications.error("Error performing Engraving Strike");
+    ui.notifications.error("Error performing Engraving Strike. Check console for details.");
   }
 }
 
-/**
- * Adds a rune (etch or trace)
- */
 async function addRune(
   rune,
   { actor, token, type = "etched", action = 0, free }
 ) {
-  // Skip target dialog and use currently targeted tokens
   const currentTargets = Array.from(game.user.targets);
 
   if (currentTargets.length === 0) {
@@ -523,7 +510,6 @@ async function addRune(
     return;
   }
 
-  // Convert current targets to the expected format
   const targets = currentTargets.map(targetToken => ({
     type: 'person',
     token: targetToken.id,
@@ -535,7 +521,6 @@ async function addRune(
     objectName: null
   }));
 
-  // Process each target
   for (const target of targets) {
     let runes = actor.getFlag(MODULE_ID, "runes");
     const id = foundry.utils.randomID();

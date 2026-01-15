@@ -196,16 +196,12 @@ export function handleSpecificRunes({ rune, target, srcToken, invocation }) {
  */
 async function handleEsvadirInvoke(targetToken, target, srcToken, effectData) {
   const actor = targetToken.actor;
-  
-  // Get all weapons and unarmed strikes
-  const weapons = actor.itemTypes.weapon.filter(w => w.isEquipped);
-  const unarmed = actor.itemTypes.action.filter(a => 
-    a.system.traits?.value?.includes("unarmed") || 
-    a.system.category === "unarmed"
-  );
-  
-  const allStrikes = [...weapons, ...unarmed];
-  
+
+  // Get all strike actions from the actor (includes weapons, unarmed, and monk stances)
+  const allStrikes = actor.system.actions?.filter(action =>
+    action.type === "strike" && action.ready
+  ) || [];
+
   if (allStrikes.length === 0) {
     ui.notifications.warn("Target has no equipped weapons or unarmed strikes.");
     return;
@@ -217,8 +213,8 @@ async function handleEsvadirInvoke(targetToken, target, srcToken, effectData) {
       <div class="form-group">
         <label><strong>Select a weapon or unarmed strike:</strong></label>
         <select name="weaponId" style="width: 100%; margin-top: 8px;">
-          ${allStrikes.map(strike => 
-            `<option value="${strike.id}">${strike.name}</option>`
+          ${allStrikes.map((strike, index) =>
+            `<option value="${index}">${strike.label}</option>`
           ).join('')}
         </select>
       </div>
@@ -238,8 +234,8 @@ async function handleEsvadirInvoke(targetToken, target, srcToken, effectData) {
         icon: "fas fa-check",
         callback: (event, button, dialog) => {
           const html = dialog.element;
-          const weaponId = html.querySelector('select[name="weaponId"]').value;
-          return allStrikes.find(s => s.id === weaponId);
+          const weaponIndex = html.querySelector('select[name="weaponId"]').value;
+          return allStrikes[parseInt(weaponIndex)];
         }
       },
       {
@@ -257,8 +253,8 @@ async function handleEsvadirInvoke(targetToken, target, srcToken, effectData) {
   playEsvadirInvokeAnimation(targetToken);
 
   // Modify effect data to include weapon info
-  effectData.system.description.value += `<p><strong>Applied to:</strong> ${selectedWeapon.name}</p>`;
-  effectData.name = `[Invoked] ${effectData.name} (${selectedWeapon.name})`;
+  effectData.system.description.value += `<p><strong>Applied to:</strong> ${selectedWeapon.label}</p>`;
+  effectData.name = `[Invoked] ${effectData.name} (${selectedWeapon.label})`;
 
   game.pf2eRunesmithAssistant.socket.executeAsGM("createEffect", {
     targetID: target.token,

@@ -1,8 +1,8 @@
 {
   "id": "pf2e-runesmith-assistant",
   "title": "PF2e Runesmith Assistant",
-  "description": "This module handles automation for the Runesmith class",
-  "version": "1.3",
+  "description": "WIP, this module is still in alpha and subject to changes and breakages so use at your own risk",
+  "version": "#{VERSION}#",
   "library": "false",
   "compatibility": {
     "minimum": 12,
